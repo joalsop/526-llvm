@@ -42,6 +42,14 @@ const Loop* addClonedBlockToLoopInfo(BasicBlock *OriginalBB,
 bool UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
                 bool AllowRuntime, bool AllowExpensiveTripCount,
                 bool PreserveCondBr, bool PreserveOnlyFirst,
+                std::vector<int> ItersToPreserve,
+                unsigned TripMultiple, unsigned PeelCount, LoopInfo *LI,
+                ScalarEvolution *SE, DominatorTree *DT, AssumptionCache *AC,
+                OptimizationRemarkEmitter *ORE, bool PreserveLCSSA);
+
+bool UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
+                bool AllowRuntime, bool AllowExpensiveTripCount,
+                bool PreserveCondBr, bool PreserveOnlyFirst,
                 unsigned TripMultiple, unsigned PeelCount, LoopInfo *LI,
                 ScalarEvolution *SE, DominatorTree *DT, AssumptionCache *AC,
                 OptimizationRemarkEmitter *ORE, bool PreserveLCSSA);

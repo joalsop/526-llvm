@@ -7,14 +7,20 @@ if( NOT LLVM_REQUIRES_RTTI )
 endif()
 
 if(WIN32 OR CYGWIN)
-  set(LLVM_LINK_COMPONENTS Core Support)
+  set(LLVM_LINK_COMPONENTS Core Support TransformUtils)
 endif()
 
 add_llvm_loadable_module( LLVMProj526
   Proj526.cpp
+
+  ADDITIONAL_HEADER_DIRS
+  ${LLVM_MAIN_INCLUDE_DIR}/llvm/Transforms
+  ${LLVM_MAIN_INCLUDE_DIR}/llvm/Transforms/Utils
 
   DEPENDS
   intrinsics_gen
   PLUGIN_TOOL
   opt
   )
+
+#target_link_libraries(LLVMProj526 LLVMTransformUtils)
