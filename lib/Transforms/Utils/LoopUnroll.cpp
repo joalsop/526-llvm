@@ -245,6 +245,7 @@ const Loop* llvm::addClonedBlockToLoopInfo(BasicBlock *OriginalBB,
 bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
                       bool AllowRuntime, bool AllowExpensiveTripCount,
                       bool PreserveCondBr, bool PreserveOnlyFirst,
+                      std::vector<int> ItersToPreserve,
                       unsigned TripMultiple, unsigned PeelCount, LoopInfo *LI,
                       ScalarEvolution *SE, DominatorTree *DT,
                       AssumptionCache *AC, OptimizationRemarkEmitter *ORE,
@@ -583,10 +584,20 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
       // If using trip count upper bound to completely unroll, we need to keep
       // the conditional branch except the last one because the loop may exit
       // after any iteration.
-      assert(NeedConditional &&
-             "NeedCondition cannot be modified by both complete "
-             "unrolling and runtime unrolling");
-      NeedConditional = (PreserveCondBr && j && !(PreserveOnlyFirst && i != 0));
+      if (ItersToPreserve.size() > 0) {
+        NeedConditional = false;
+        for (int idx=0; idx<ItersToPreserve.size(); idx++) {
+          if (ItersToPreserve[idx]==i) {
+            NeedConditional = true;
+          }
+        }
+      }
+      else {
+        assert(NeedConditional &&
+               "NeedCondition cannot be modified by both complete "
+               "unrolling and runtime unrolling");
+        NeedConditional = (PreserveCondBr && j && !(PreserveOnlyFirst && i != 0));
+      }
     } else if (j != BreakoutTrip && (TripMultiple == 0 || j % TripMultiple != 0)) {
       // If we know the trip count or a multiple of it, we can safely use an
       // unconditional branch for some iterations.
@@ -752,6 +763,18 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
   }
 
   return true;
+}
+
+bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
+                bool AllowRuntime, bool AllowExpensiveTripCount,
+                bool PreserveCondBr, bool PreserveOnlyFirst,
+                unsigned TripMultiple, unsigned PeelCount, LoopInfo *LI,
+                ScalarEvolution *SE, DominatorTree *DT, AssumptionCache *AC,
+                OptimizationRemarkEmitter *ORE, bool PreserveLCSSA) {
+  std::vector<int> ItersToPreserve;
+  return UnrollLoop(L, Count, TripCount, Force, AllowRuntime, AllowExpensiveTripCount,
+                    PreserveCondBr, PreserveOnlyFirst, ItersToPreserve, TripMultiple, PeelCount, 
+                    LI, SE, DT, AC, ORE, PreserveLCSSA);
 }
 
 /// Given an llvm.loop loop id metadata node, returns the loop hint metadata

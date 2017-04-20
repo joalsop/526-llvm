@@ -28,6 +28,7 @@
 #include "llvm/Support/Atomic.h"
 #include "llvm/Support/Threading.h"
 #include <functional>
+#include <stdio.h>
 
 namespace llvm {
 
@@ -106,6 +107,7 @@ template <typename passName> struct RegisterPass : public PassInfo {
       : PassInfo(Name, PassArg, &passName::ID,
                  PassInfo::NormalCtor_t(callDefaultCtor<passName>), CFGOnly,
                  is_analysis) {
+    printf("#################\n\n\n\nRegistering pass %s %s\n\n\n\n####################\n", Name.str().c_str(), PassArg.str().c_str());
     PassRegistry::getPassRegistry()->registerPass(*this);
   }
 };
