@@ -2,7 +2,7 @@
 # from the Proj526 plugin.
 if( NOT LLVM_REQUIRES_RTTI )
   if( NOT LLVM_REQUIRES_EH )
-    set(LLVM_EXPORTED_SYMBOL_FILE ${CMAKE_CURRENT_SOURCE_DIR}/Proj526.exports)
+    set(LLVM_EXPORTED_SYMBOL_FILE ${CMAKE_CURRENT_SOURCE_DIR}/Proj526Func.exports)
   endif()
 endif()
 
@@ -10,8 +10,8 @@ if(WIN32 OR CYGWIN)
   set(LLVM_LINK_COMPONENTS Core Support TransformUtils)
 endif()
 
-add_llvm_loadable_module( LLVMProj526
-  Proj526.cpp
+add_llvm_loadable_module( LLVMProj526Func
+  Proj526Func.cpp
 
   DEPENDS
   intrinsics_gen

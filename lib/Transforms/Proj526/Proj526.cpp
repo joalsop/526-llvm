@@ -60,9 +60,46 @@
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <stdio.h>
 
 using namespace llvm;
 
+#define DEBUG_TYPE "nameinsts"
+
+
+namespace {
+  struct NameAllInsts : public FunctionPass {
+    static char ID; // Pass identification, replacement for typeid
+    NameAllInsts() : FunctionPass(ID) {}
+
+    bool runOnFunction(Function &F) override {
+      int global_id = 0;
+      for (BasicBlock &BB : F) {
+        if (!(dynamic_cast<Value*>(&BB))->hasName()) {
+          std::stringstream new_name_ss;
+          new_name_ss << "526_" << global_id++;
+          BB.setName(new_name_ss.str());
+        }
+        //errs() << "BB name: " << BB.getName() << "\n";
+        for (Instruction &I : BB) {
+          //errs() << "  Inst: " << I.hasName() << ", " << *(I.getType()) << ", " << I << "\n";
+          if (!I.hasName() && !I.getType()->isVoidTy()) {
+            std::stringstream new_name_ss;
+            new_name_ss << "526_" << global_id++;
+            I.setName(new_name_ss.str());
+          }
+          //errs() << "  Inst name: " << I.getName() << "\n";
+        }
+      }
+      return false;
+    }
+  };
+}
+
+char NameAllInsts::ID = 0;
+static RegisterPass<NameAllInsts> Y("nameinsts", "Name Insts Pass");
+
+#undef DEBUG_TYPE
 #define DEBUG_TYPE "proj526"
 #include "Proj526Unroll.h"
 
@@ -89,17 +126,19 @@ namespace {
       std::stringstream ss(IterationCounts);
       std::string strcount;
       while (std::getline(ss, strcount, ',')) {
-        size_t hyphen_loc = strcount.find("-");
-        if (hyphen_loc != std::string::npos) {
-          int begin = atoi(strcount.substr(0, hyphen_loc).c_str());
-          int end = atoi(strcount.substr(hyphen_loc).c_str());
-          for (int i=begin; i<=end; i++) {
-            LoopIterationCounts.push_back(i);
+        if (strcount.size() > 0) {
+          size_t hyphen_loc = strcount.find("-");
+          if (hyphen_loc != std::string::npos) {
+            int begin = atoi(strcount.substr(0, hyphen_loc).c_str());
+            int end = atoi(strcount.substr(hyphen_loc+1).c_str());
+            for (int i=begin; i<=end; i++) {
+              LoopIterationCounts.push_back(i);
+            }
           }
-        }
-        else {
-          int count = atoi(strcount.c_str());
-          LoopIterationCounts.push_back(count);
+          else {
+            int count = atoi(strcount.c_str());
+            LoopIterationCounts.push_back(count);
+          }
         }
       } 
       //sort LoopIterationCounts
@@ -164,6 +203,7 @@ namespace {
       unsigned TripMultiple=Count;
       unsigned PeelCount=0;
 
+      errs() << "try UnrollLoop " << TripCount << " times\n";
       if (UnrollLoop(L, Count, TripCount, Force, AllowRuntime,
                       AllowExpensiveTripCount, PreserveCondBr, PreserveOnlyFirst, 
                       LoopIterationCounts,
