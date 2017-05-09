@@ -18,11 +18,13 @@ extern char s_phi[];
 // Get the bitwidth of this type.
 int getMemSize(Type *T);
 
+long unique_mem_address = 0;
+
 // Computed properties of an instruction commonly used by this pass's
 // handling functions.
 struct InstEnv {
   public:
-    InstEnv() : line_number(-1), instc(0) {}
+    InstEnv() : line_number(-1), instc(0), is_aliasable(true) {}
 
     enum { BUF_SIZE = 256 };
 
@@ -36,6 +38,8 @@ struct InstEnv {
     int line_number;
     // Static instruction count within this basic block.
     int instc;
+    // The access may be aliased (mem insts only)
+    bool is_aliasable;
 };
 
 struct InstOperandParams {
@@ -72,7 +76,7 @@ struct InstOperandParams {
     char *prev_bbid;
 };
 
-bool runOnBasicBlock526(BasicBlock &BB);
+bool runOnBasicBlock526(BasicBlock &BB, std::vector<int> anti_alias_lines);
 // This is for Proj526, where we want to print the line immediately
 // rather than insert a call to print a line
 void printFirstLine526(Instruction *insert_point, InstEnv *env, unsigned opcode);
@@ -80,10 +84,10 @@ void printFirstLine526(Instruction *insert_point, InstEnv *env, unsigned opcode)
 // rather than insert a call to print a line
 void printParamLine526(Instruction *I, int param_num, const char *reg_id,
                     const char *bbId, Type::TypeID datatype,
-                    unsigned datasize, Value *value, bool is_reg,
+                    unsigned datasize, Value *value, bool is_reg, bool is_aliasable,
                     const char *prev_bbid = s_phi);
 
-void printParamLine526(Instruction *I, InstOperandParams *params);
+void printParamLine526(Instruction *I, InstOperandParams *params, bool is_aliasable=true);
 bool getInstId526(Instruction *I, char *bbid, char *instid, int *instc);
 bool getInstId526(Instruction *I, InstEnv *env);
 void getBBId526(Value *BB, char *bbid);

@@ -266,7 +266,7 @@ bool Tracer::runOnBasicBlock(BasicBlock &BB) {
   return false;
 }
 
-bool runOnBasicBlock526(BasicBlock &BB) {
+bool runOnBasicBlock526(BasicBlock &BB, std::vector<int> anti_alias_lines) {
   Function *func = BB.getParent();
   std::string funcName = func->getName().str();
   InstEnv env;
@@ -309,6 +309,8 @@ bool runOnBasicBlock526(BasicBlock &BB) {
     // Get static instruction ID: produce instid
     getInstId526(I, &env);
     setLineNumberIfExists526(I, &env);
+    // determine whether user has specified this access is not aliased 
+    env.is_aliasable = (std::find(anti_alias_lines.begin(), anti_alias_lines.end(), env.line_number) == anti_alias_lines.end());
 
     //errs() << "handling inst  " << *I << "\n";
     bool traceCall = true;
@@ -364,15 +366,15 @@ bool Tracer::isTrackedFunction(std::string& func) {
   return false;
 }
 
-void printParamLine526(Instruction *I, InstOperandParams *params) {
+void printParamLine526(Instruction *I, InstOperandParams *params, bool is_aliasable) {
   printParamLine526(I, params->param_num, params->operand_name, params->bbid,
                  params->datatype, params->datasize, params->value,
-                 params->is_reg, params->prev_bbid);
+                 params->is_reg, is_aliasable, params->prev_bbid);
 }
 
 void printParamLine526(Instruction *I, int param_num, const char* reg_id,
                             const char *bbId, Type::TypeID datatype,
-                            unsigned datasize, Value *value, bool is_reg,
+                            unsigned datasize, Value *value, bool is_reg, bool is_aliasable,
                             const char *prev_bbid) {
   //IRBuilder<> IRB(I);
   //bool is_phi = (bbId != nullptr && strcmp(bbId, "phi") == 0);
@@ -403,7 +405,18 @@ void printParamLine526(Instruction *I, int param_num, const char* reg_id,
       //Value *args[] = { v_param_num,    v_size,   v_value,     v_is_reg,
       //                  vv_reg_id, v_is_phi, vv_prev_bbid };
       //IRB.CreateCall(TL_log_int, args);
-      trace_logger_log_int(param_num, datasize, 3, is_reg, reg_id, is_phi, prev_bbid);
+      // if specified as unaliasable, make this address unique
+      // otherwise set it to 3 (assumed to always alias with all other aliasable)
+      long address = 3;
+      if (!is_aliasable) {
+        address = unique_mem_address;
+        unique_mem_address+=datasize;
+        errs() << "non-aliasable inst " << *I << "\n";
+      }
+      else {
+        errs() << "aliasable inst " << *I << "\n";
+      }
+      trace_logger_log_int(param_num, datasize, address, is_reg, reg_id, is_phi, prev_bbid);
     } else {
       fprintf(stderr, "normal data else: %d, %s\n", datatype, reg_id);
     }
@@ -844,7 +857,7 @@ void Tracer::handleNonPhiNonCallInstruction(Instruction *inst, InstEnv* env) {}
 
 void handleNonPhiNonCallInstruction526(Instruction *inst, InstEnv* env) {
   char op_name[256];
-  errs() << "got opcode " << inst->getOpcode() << "(" << inst->getOpcodeName() << ") from inst " << *inst << "\n";
+  //errs() << "got opcode " << inst->getOpcode() << "(" << inst->getOpcodeName() << ") from inst " << *inst << "\n";
   printFirstLine526(inst, env, inst->getOpcode());
   int num_of_operands = inst->getNumOperands();
   if (num_of_operands > 0) {
@@ -876,7 +889,7 @@ void handleNonPhiNonCallInstruction526(Instruction *inst, InstEnv* env) {
           params.value = curr_operand;
         }
       }
-      printParamLine526(inst, &params);
+      printParamLine526(inst, &params, env->is_aliasable);
     }
   }
 }

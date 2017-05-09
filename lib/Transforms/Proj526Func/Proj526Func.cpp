@@ -25,6 +25,8 @@ using namespace llvm;
 
 #define DEBUG_TYPE "proj526func"
 
+static cl::opt<std::string> UnaliasedLines("unaliased_lines", cl::desc("Source lines with accesses which we know will not alias with another access"));
+
 namespace {
   // used for creating trace from CFG
   struct cfg_node {
@@ -37,6 +39,36 @@ namespace {
   struct Proj526Func : public FunctionPass {
     static char ID; // Pass identification, replacement for typeid
     Proj526Func() : FunctionPass(ID) {}
+
+    bool doInitialization(Module &M) override {
+      AntiAliasingLines.clear();
+      // parse comma-separated UnaliasedLines
+      std::stringstream ss(UnaliasedLines);
+      std::string strcount;
+      while (std::getline(ss, strcount, ',')) {
+        if (strcount.size() > 0) {
+          size_t hyphen_loc = strcount.find("-");
+          if (hyphen_loc != std::string::npos) {
+            int begin = atoi(strcount.substr(0, hyphen_loc).c_str());
+            int end = atoi(strcount.substr(hyphen_loc+1).c_str());
+            for (int i=begin; i<=end; i++) {
+              AntiAliasingLines.push_back(i);
+            }
+          }
+          else {
+            int count = atoi(strcount.c_str());
+            AntiAliasingLines.push_back(count);
+          }
+        }
+      }
+      //sort AntiAliasingLines 
+      std::sort(AntiAliasingLines.begin(), AntiAliasingLines.end());
+      errs() << "AntiAliasingLines: ";
+      for (std::vector<int>::iterator it=AntiAliasingLines.begin(); it!=AntiAliasingLines.end(); it++) {
+        errs() << *it << ", ";
+      }
+      errs() << "\n";
+    }
 
     bool runOnFunction(Function &F) override {
       errs() << "Proj526Func: ";
@@ -87,7 +119,7 @@ namespace {
       for (std::vector<cfg_node*>::iterator it=trace.begin(); it!=trace.end(); it++) {
         //errs() << "Basic block " << i << ":\n" << *((*it)->block) << "\n";
         errs() << "runOnBasicBlock " << i << ": " << (dynamic_cast<Value*>((*it)->block))->getName() << "\n";
-        runOnBasicBlock526(*((*it)->block));
+        runOnBasicBlock526(*((*it)->block), AntiAliasingLines);
         i++;
       }
 
@@ -95,6 +127,8 @@ namespace {
       trace.clear();
       return false;
     }
+  private:
+    std::vector<int> AntiAliasingLines;
   };
 }
 

@@ -115,6 +115,7 @@ namespace {
     //bool UnrollLoop526(Loop *L, LoopInfo *LI, ScalarEvolution *SE, AssumptionCache *AC, DominatorTree *DT);
 
     bool doInitialization(Loop *L, LPPassManager &) override {
+      LoopIterationCounts.clear();
       if (LoopLine.getNumOccurrences() != 1 || IterationCounts.getNumOccurrences() != 1) {
         errs() << "Error: need one argument for loop_line, one argument for iteration_counts. (provided " 
                << LoopLine.getNumOccurrences() << " and " << IterationCounts.getNumOccurrences() << ", respectively)\n";
@@ -171,17 +172,18 @@ namespace {
       BasicBlock *BB = L->getHeader();
       for (BasicBlock::iterator I = BB->begin(), E = BB->end();
            (I != E); ++I) {
-        errs() << "has metadata: " << I->hasMetadata() << ", metatdata from I: " << I->getMetadata("dbg") << ", loc:" << I->getDebugLoc() << ", " << *I << "\n";
+        //errs() << "has metadata: " << I->hasMetadata() << ", metatdata from I: " << I->getMetadata("dbg") << ", loc:" << I->getDebugLoc() << ", " << *I << "\n";
         if (DILocation *Loc = I->getDebugLoc()) {
           line_number = Loc->getLine();
-          errs() << "Got line num:" << line_number << "\n";
+          //errs() << "Got line num:" << line_number << "\n";
           if (line_number == LoopLineNum) {
             loop_match = true;
+            errs() << "Loop at " << line_number << " is a match\n";
             break;
           }
         }
         else {
-          errs() << "damn, can't get metatdata from I\n";
+          //errs() << "damn, can't get metatdata from I\n";
         }
       }
       if (!loop_match) {
