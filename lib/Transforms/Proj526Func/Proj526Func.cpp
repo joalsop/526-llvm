@@ -32,7 +32,7 @@ namespace {
   // used for creating trace from CFG
   struct cfg_node {
     BasicBlock *block;
-    BasicBlock *direct_dominator;
+    std::vector<BasicBlock*> postdominators;
     std::vector<cfg_node*> pred_nodes;
     std::vector<cfg_node*> succ_nodes;
   };
@@ -74,13 +74,13 @@ namespace {
     }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {
-      AU.addRequired<DominatorTreeWrapperPass>();
+      AU.addRequired<PostDominatorTreeWrapperPass>();
     }
 
     bool runOnFunction(Function &F) override {
       errs() << "Proj526Func: ";
       errs().write_escaped(F.getName()) << '\n';
-      auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
+      auto &PDT = getAnalysis<PostDominatorTreeWrapperPass>().getPostDomTree();
 
       // node map stores cfg_node for each block
       std::map<BasicBlock*, cfg_node> cfg_node_map;
@@ -130,27 +130,31 @@ namespace {
 
       // establish direct dominator for each BB
       for (std::vector<cfg_node*>::iterator it_dominatee=trace.begin(); it_dominatee!=trace.end(); it_dominatee++) {
-        (*it_dominatee)->direct_dominator = NULL;
         for (std::vector<cfg_node*>::iterator it_dominator=trace.begin(); it_dominator!=trace.end(); it_dominator++) {
           // the last block in the trace which dominates the dominatee
           // is the direct dominator
-          if (DT.properlyDominates((*it_dominator)->block, (*it_dominatee)->block)) {
-            (*it_dominatee)->direct_dominator = (*it_dominator)->block;
+          if (PDT.properlyDominates((*it_dominator)->block, (*it_dominatee)->block)) {
+            (*it_dominator)->postdominators.push_back((*it_dominatee)->block);
           }
         }
       }
 
       int i =0;
       for (std::vector<cfg_node*>::iterator it=trace.begin(); it!=trace.end(); it++) {
-        std::string dominator_str = "<None>";
-        Instruction *dominator_br = NULL;
-        if ((*it)->direct_dominator != NULL) {
-          dominator_str = (dynamic_cast<Value*>((*it)->direct_dominator))->getName();
-          dominator_br = (*it)->direct_dominator->getTerminator();
+        std::string pdominator_str = "";
+        std::vector<Instruction*> pdominator_brs;
+        if ((*it)->postdominators.size() > 0) {
+          for (std::vector<BasicBlock*>::iterator pdit = (*it)->postdominators.begin(); pdit != (*it)->postdominators.end(); pdit++) {
+            pdominator_str = pdominator_str + string((dynamic_cast<Value*>(*pdit))->getName()) + ", ";
+            pdominator_brs.push_back((*pdit)->getTerminator());
+          }
+        }
+        else {
+          pdominator_str = "<None>";
         }
         //errs() << "Basic block " << i << ":\n" << *((*it)->block) << "\n";
-        errs() << "runOnBasicBlock " << i << ": " << (dynamic_cast<Value*>((*it)->block))->getName() << " (dominated by " << dominator_str << ")\n";
-        runOnBasicBlock526(*((*it)->block), dominator_br, AntiAliasingLines);
+        errs() << "runOnBasicBlock " << i << ": " << (dynamic_cast<Value*>((*it)->block))->getName() << " (postdominates " << pdominator_str << ")\n";
+        runOnBasicBlock526(*((*it)->block), pdominator_brs, AntiAliasingLines);
         i++;
       }
 
