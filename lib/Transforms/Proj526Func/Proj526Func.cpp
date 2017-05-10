@@ -18,6 +18,7 @@
 using namespace llvm;
 
 #include "llvm/Analysis/RegionPass.h"
+#include "llvm/Analysis/ControlDependenceGraph.h"
 #include "profile-func/trace_logger.c"
 #include "full-trace/full_trace.h"
 #include "full-trace/full_trace.cpp"
@@ -68,6 +69,9 @@ namespace {
         errs() << *it << ", ";
       }
       errs() << "\n";
+    }
+
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
     }
 
     bool runOnFunction(Function &F) override {

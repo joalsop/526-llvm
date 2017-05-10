@@ -19,6 +19,7 @@ extern char s_phi[];
 int getMemSize(Type *T);
 
 long unique_mem_address = 0;
+std::map<Instruction*, int> inst_map;
 
 // Computed properties of an instruction commonly used by this pass's
 // handling functions.

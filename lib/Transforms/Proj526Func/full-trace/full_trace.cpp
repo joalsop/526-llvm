@@ -27,6 +27,7 @@
 
 #define RESULT_LINE 19134
 #define FORWARD_LINE 24601
+#define DEPENDENCE_LINE 24602
 #define DMA_FENCE 97
 #define DMA_STORE 98
 #define DMA_LOAD 99
@@ -414,10 +415,10 @@ void printParamLine526(Instruction *I, int param_num, const char* reg_id,
         address = unique_mem_address;
         //datasize is in bits so divide by 8
         unique_mem_address+=datasize/8;
-        errs() << "non-aliasable inst " << *I << "\n";
+        //errs() << "non-aliasable inst " << *I << "\n";
       }
       else {
-        errs() << "aliasable inst " << *I << "\n";
+        //errs() << "aliasable inst " << *I << "\n";
       }
       trace_logger_log_int(param_num, datasize, address, is_reg, reg_id, is_phi, prev_bbid);
     } else {
@@ -526,7 +527,9 @@ void printFirstLine526(Instruction *I, InstEnv *env, unsigned opcode) {
   //IRB.CreateCall(TL_log0, args);
   bool is_tracked_function = true;//(tracked_functions.find(env->funcName) != tracked_functions.end());
   
-  trace_logger_log0(env->line_number, env->funcName, env->bbid, env->instid, opcode, is_tracked_function, true);//is_toplevel_mode);
+  int inst_count = trace_logger_log0(env->line_number, env->funcName, env->bbid, env->instid, opcode, is_tracked_function, true);//is_toplevel_mode);
+  inst_map[I] = inst_count;
+  errs() << "setting inst_map:" << *I << "\n";
 }
 
 bool Tracer::getInstId(Instruction *I, InstEnv* env) {
@@ -700,9 +703,11 @@ void handlePhiNodes526(BasicBlock* BB, InstEnv* env) {
     getInstId526(&(*itr), env);
     setLineNumberIfExists526(I, env);
 
-    printFirstLine526(&(*insertp), env, itr->getOpcode());
+    //printFirstLine526(&(*insertp), env, itr->getOpcode());
+    printFirstLine526(&(*itr), env, itr->getOpcode());
 
     // Print each operand.
+    errs() << "Process Phi node " << *I << "\n";
     int num_of_operands = itr->getNumOperands();
     if (num_of_operands > 0) {
       for (int i = num_of_operands - 1; i >= 0; i--) {
@@ -713,15 +718,22 @@ void handlePhiNodes526(BasicBlock* BB, InstEnv* env) {
         params.param_num = i + 1;
         params.setDataTypeAndSize(curr_operand);
 
-        if (Instruction *I = dyn_cast<Instruction>(curr_operand)) {
-          setOperandNameAndReg526(I, &params);
+        if (Instruction *Iop = dyn_cast<Instruction>(curr_operand)) {
+          setOperandNameAndReg526(Iop, &params);
           params.value = nullptr;
+          errs() << "  inst op" << i << ": <" << *Iop << ">\n";
           if (!curr_operand->getType()->isVectorTy()) {
             params.setDataTypeAndSize(curr_operand);
+          }
+          // insert 'w' directive so aladdin adds dependency edge
+          if (inst_map.find(Iop) != inst_map.end()) {
+            errs() << "  found in inst_map:" << *Iop << ": " << inst_map[Iop] << "\n";
+            trace_logger_log_int(DEPENDENCE_LINE, 0, inst_map[Iop], 0, "", 0, "");
           }
         } else {
           params.is_reg = curr_operand->hasName();
           strcpy(params.operand_name, curr_operand->getName().str().c_str());
+          errs() << "  non-inst op" << i << ": <" << params.operand_name << ">\n";
           if (!curr_operand->getType()->isVectorTy()) {
             params.value = curr_operand;
           }
