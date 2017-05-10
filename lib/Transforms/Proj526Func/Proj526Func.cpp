@@ -32,6 +32,7 @@ namespace {
   // used for creating trace from CFG
   struct cfg_node {
     BasicBlock *block;
+    BasicBlock *direct_dominator;
     std::vector<cfg_node*> pred_nodes;
     std::vector<cfg_node*> succ_nodes;
   };
@@ -69,14 +70,17 @@ namespace {
         errs() << *it << ", ";
       }
       errs() << "\n";
+      return false;
     }
 
     void getAnalysisUsage(AnalysisUsage &AU) const override {
+      AU.addRequired<DominatorTreeWrapperPass>();
     }
 
     bool runOnFunction(Function &F) override {
       errs() << "Proj526Func: ";
       errs().write_escaped(F.getName()) << '\n';
+      auto &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
 
       // node map stores cfg_node for each block
       std::map<BasicBlock*, cfg_node> cfg_node_map;
@@ -100,7 +104,8 @@ namespace {
         }
       }
 
-      // generate topological ordering
+      // generate topological ordering so that the trace
+      // can be printed linearly
       std::vector<cfg_node*> S;
       S.push_back(&(cfg_node_map[&(F.getEntryBlock())]));
       // Kahn's algorithm for topological sort
@@ -118,12 +123,34 @@ namespace {
           }
         }
       }
+      // verify topological sort is correct
+      assert(cfg_node_map.size() == trace.size());
+      // if there are any remaining predecessor edges,
+      // then the graph was not acyclic
+
+      // establish direct dominator for each BB
+      for (std::vector<cfg_node*>::iterator it_dominatee=trace.begin(); it_dominatee!=trace.end(); it_dominatee++) {
+        (*it_dominatee)->direct_dominator = NULL;
+        for (std::vector<cfg_node*>::iterator it_dominator=trace.begin(); it_dominator!=trace.end(); it_dominator++) {
+          // the last block in the trace which dominates the dominatee
+          // is the direct dominator
+          if (DT.properlyDominates((*it_dominator)->block, (*it_dominatee)->block)) {
+            (*it_dominatee)->direct_dominator = (*it_dominator)->block;
+          }
+        }
+      }
 
       int i =0;
       for (std::vector<cfg_node*>::iterator it=trace.begin(); it!=trace.end(); it++) {
+        std::string dominator_str = "<None>";
+        Instruction *dominator_br = NULL;
+        if ((*it)->direct_dominator != NULL) {
+          dominator_str = (dynamic_cast<Value*>((*it)->direct_dominator))->getName();
+          dominator_br = (*it)->direct_dominator->getTerminator();
+        }
         //errs() << "Basic block " << i << ":\n" << *((*it)->block) << "\n";
-        errs() << "runOnBasicBlock " << i << ": " << (dynamic_cast<Value*>((*it)->block))->getName() << "\n";
-        runOnBasicBlock526(*((*it)->block), AntiAliasingLines);
+        errs() << "runOnBasicBlock " << i << ": " << (dynamic_cast<Value*>((*it)->block))->getName() << " (dominated by " << dominator_str << ")\n";
+        runOnBasicBlock526(*((*it)->block), dominator_br, AntiAliasingLines);
         i++;
       }
 
