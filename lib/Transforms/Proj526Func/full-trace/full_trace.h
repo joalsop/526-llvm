@@ -25,7 +25,7 @@ std::map<Instruction*, int> inst_map;
 // handling functions.
 struct InstEnv {
   public:
-    InstEnv() : line_number(-1), instc(0), is_aliasable(true) {}
+    InstEnv() : line_number(-1), instc(0), is_aliasable(true), dominator_br(NULL) {}
 
     enum { BUF_SIZE = 256 };
 
@@ -41,6 +41,8 @@ struct InstEnv {
     int instc;
     // The access may be aliased (mem insts only)
     bool is_aliasable;
+    // Dominator branch instruction id (used to add dependence line for stores)
+    Instruction* dominator_br;
 };
 
 struct InstOperandParams {
@@ -77,7 +79,7 @@ struct InstOperandParams {
     char *prev_bbid;
 };
 
-bool runOnBasicBlock526(BasicBlock &BB, std::vector<int> anti_alias_lines);
+bool runOnBasicBlock526(BasicBlock &BB, Instruction* dominator_br, std::vector<int> anti_alias_lines);
 // This is for Proj526, where we want to print the line immediately
 // rather than insert a call to print a line
 void printFirstLine526(Instruction *insert_point, InstEnv *env, unsigned opcode);

@@ -246,21 +246,18 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
   BasicBlock *Preheader = L->getLoopPreheader();
   if (!Preheader) {
     DEBUG(dbgs() << "  Can't unroll; loop preheader-insertion failed.\n");
-    errs() << "error1\n";
     return false;
   }
 
   BasicBlock *LatchBlock = L->getLoopLatch();
   if (!LatchBlock) {
     DEBUG(dbgs() << "  Can't unroll; loop exit-block-insertion failed.\n");
-    errs() << "error2\n";
     return false;
   }
 
   // Loops with indirectbr cannot be cloned.
   if (!L->isSafeToClone()) {
     DEBUG(dbgs() << "  Can't unroll; Loop body cannot be cloned.\n");
-    errs() << "error3\n";
     return false;
   }
 
@@ -271,9 +268,6 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
     // The loop-rotate pass can be helpful to avoid this in many cases.
     DEBUG(dbgs() <<
              "  Can't unroll; loop not terminated by a conditional branch.\n" << "\n" << *BI << "\n");
-    errs() << "error4: " << BI << "\n";
-    errs() << "error4: " << *BI << "\n";
-    errs() << "error4: " << BI->isUnconditional() << "\n";
     return false;
   }
 
@@ -281,7 +275,6 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
     // The loop-rotate pass can be helpful to avoid this in many cases.
     DEBUG(dbgs() <<
           "  Won't unroll loop: address of header block is taken.\n");
-    errs() << "error5\n";
     return false;
   }
 
@@ -297,7 +290,6 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
 
   // Don't enter the unroll code if there is nothing to do.
   if (TripCount == 0 && Count < 2 && PeelCount == 0) {
-    errs() << "error6\n";
     return false;
   }
 
@@ -501,13 +493,13 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
           continue;
         for (BasicBlock::iterator BBI = Succ->begin();
              PHINode *phi = dyn_cast<PHINode>(BBI); ++BBI) {
-          errs() << "adding phi nodes for succ " << *BBI << "\n  of BB begin:(" << (*BB)->front() << ")\n  end:(" << (*BB)->back() << ")]\n";
+          //errs() << "adding phi nodes for succ " << *BBI << "\n  of BB begin:(" << (*BB)->front() << ")\n  end:(" << (*BB)->back() << ")]\n";
           Value *Incoming = phi->getIncomingValueForBlock(*BB);
           ValueToValueMapTy::iterator It = LastValueMap.find(Incoming);
           if (It != LastValueMap.end())
             Incoming = It->second;
           phi->addIncoming(Incoming, New);
-          errs() << "new succ is " << *phi << "\n";
+          //errs() << "new succ is " << *phi << "\n";
         }
       }
       // Keep track of new headers and latches as we create them, so that
@@ -630,7 +622,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
           for (BasicBlock::iterator BBI = Succ->begin();
                PHINode *Phi = dyn_cast<PHINode>(BBI); ++BBI) {
             Phi->removeIncomingValue(BB, false);
-            errs() << "Unconditional branch for iter " << i << ", so remove term in succ phi: " <<*Phi << "\n";
+            //errs() << "Unconditional branch for iter " << i << ", so remove term in succ phi: " <<*Phi << "\n";
           }
         }
       }
@@ -646,10 +638,10 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
       for (BasicBlock::iterator BBI = Succ->begin();
            PHINode *Phi = dyn_cast<PHINode>(BBI); ++BBI) {
         SmallVector<BasicBlock*, 8> Preds(llvm::pred_begin(Succ), llvm::pred_end(Succ));
-        errs() << "Phi node " << *Phi << " has " << Phi->getNumIncomingValues() << " incoming and " << Preds.size() << " predecessors\n";
+        //errs() << "Phi node " << *Phi << " has " << Phi->getNumIncomingValues() << " incoming and " << Preds.size() << " predecessors\n";
         if (Phi->getNumIncomingValues() != Preds.size()) {
           for (unsigned idx = 0; idx < Preds.size(); idx++) {
-            errs() << "  predecessor " << idx << ":" << *(Preds[i]) << "\n";
+            //errs() << "  predecessor " << idx << ":" << *(Preds[i]) << "\n";
           }
         }
       }

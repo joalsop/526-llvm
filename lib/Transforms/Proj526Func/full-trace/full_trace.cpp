@@ -267,7 +267,7 @@ bool Tracer::runOnBasicBlock(BasicBlock &BB) {
   return false;
 }
 
-bool runOnBasicBlock526(BasicBlock &BB, std::vector<int> anti_alias_lines) {
+bool runOnBasicBlock526(BasicBlock &BB, Instruction* dominator_br, std::vector<int> anti_alias_lines) {
   Function *func = BB.getParent();
   std::string funcName = func->getName().str();
   InstEnv env;
@@ -312,6 +312,8 @@ bool runOnBasicBlock526(BasicBlock &BB, std::vector<int> anti_alias_lines) {
     setLineNumberIfExists526(I, &env);
     // determine whether user has specified this access is not aliased 
     env.is_aliasable = (std::find(anti_alias_lines.begin(), anti_alias_lines.end(), env.line_number) == anti_alias_lines.end());
+    // set dominator branch in env
+    env.dominator_br = dominator_br;
 
     //errs() << "handling inst  " << *I << "\n";
     bool traceCall = true;
@@ -529,7 +531,7 @@ void printFirstLine526(Instruction *I, InstEnv *env, unsigned opcode) {
   
   int inst_count = trace_logger_log0(env->line_number, env->funcName, env->bbid, env->instid, opcode, is_tracked_function, true);//is_toplevel_mode);
   inst_map[I] = inst_count;
-  errs() << "setting inst_map:" << *I << "\n";
+  //errs() << "setting inst_map:" << *I << "\n";
 }
 
 bool Tracer::getInstId(Instruction *I, InstEnv* env) {
@@ -707,7 +709,7 @@ void handlePhiNodes526(BasicBlock* BB, InstEnv* env) {
     printFirstLine526(&(*itr), env, itr->getOpcode());
 
     // Print each operand.
-    errs() << "Process Phi node " << *I << "\n";
+    //errs() << "Process Phi node " << *I << "\n";
     int num_of_operands = itr->getNumOperands();
     if (num_of_operands > 0) {
       for (int i = num_of_operands - 1; i >= 0; i--) {
@@ -721,19 +723,19 @@ void handlePhiNodes526(BasicBlock* BB, InstEnv* env) {
         if (Instruction *Iop = dyn_cast<Instruction>(curr_operand)) {
           setOperandNameAndReg526(Iop, &params);
           params.value = nullptr;
-          errs() << "  inst op" << i << ": <" << *Iop << ">\n";
           if (!curr_operand->getType()->isVectorTy()) {
             params.setDataTypeAndSize(curr_operand);
           }
-          // insert 'w' directive so aladdin adds dependency edge
+          // insert 'w' directive for phi instructions
+          // so aladdin adds dependency edge with phi sources
           if (inst_map.find(Iop) != inst_map.end()) {
-            errs() << "  found in inst_map:" << *Iop << ": " << inst_map[Iop] << "\n";
+            //errs() << "  found in inst_map:" << *Iop << ": " << inst_map[Iop] << "\n";
             trace_logger_log_int(DEPENDENCE_LINE, 0, inst_map[Iop], 0, "", 0, "");
           }
         } else {
           params.is_reg = curr_operand->hasName();
           strcpy(params.operand_name, curr_operand->getName().str().c_str());
-          errs() << "  non-inst op" << i << ": <" << params.operand_name << ">\n";
+          //errs() << "  non-inst op" << i << ": <" << params.operand_name << ">\n";
           if (!curr_operand->getType()->isVectorTy()) {
             params.value = curr_operand;
           }
@@ -908,6 +910,17 @@ void handleNonPhiNonCallInstruction526(Instruction *inst, InstEnv* env) {
       printParamLine526(inst, &params, env->is_aliasable);
     }
   }
+  // insert 'w' directive for store instructions
+  // so aladdin adds dependency edge with dominator branch
+  if (isa<StoreInst>(inst) || isa<TerminatorInst>(inst)) {
+    //errs() << "Processing store/terminator " << *inst << "\n";
+    if (env->dominator_br != NULL) {
+      //errs() << "  with dominator:" << *env->dominator_br << "\n";
+      assert(inst_map.find(env->dominator_br) != inst_map.end());
+      //errs() << "  found inst id:" << inst_map[env->dominator_br] << "\n";
+      trace_logger_log_int(DEPENDENCE_LINE, 0, inst_map[env->dominator_br], 0, "", 0, "");
+    }
+  }
 }
 
 void Tracer::handleInstructionResult(Instruction *inst, Instruction *next_inst,
@@ -957,6 +970,7 @@ bool LabelMapHandler::runOnModule(Module &M) {
 //    builder.CreateCall(labelMapWriter, args);
 //
 //    return true;
+  return false;
 }
 
 bool LabelMapHandler::readLabelMap() {
