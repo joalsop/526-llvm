@@ -821,9 +821,9 @@ void handleCallInstruction526(Instruction* inst, InstEnv* env) {
   printParamLine526(inst, &params);
 
   int call_id = 0;
-  const Function::ArgumentListType &Args(fun->getArgumentList());
-  for (Function::ArgumentListType::const_iterator arg_it = Args.begin(),
-                                                  arg_end = Args.end();
+  //const Function::ArgumentListType &Args(fun->getArgumentList());
+  for (Function::const_arg_iterator arg_it = fun->arg_begin(),
+                                    arg_end = fun->arg_end();
        arg_it != arg_end; ++arg_it, ++call_id) {
     Value* curr_operand = inst->getOperand(call_id);
 

@@ -324,7 +324,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
          "and peeling for the same loop");
 
   if (PeelCount)
-    peelLoop(L, PeelCount, LI, SE, DT, PreserveLCSSA);
+    peelLoop(L, PeelCount, LI, SE, DT, AC, PreserveLCSSA);
 
   // Loops containing convergent instructions must have a count that divides
   // their TripMultiple.
@@ -696,7 +696,7 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount, bool Force,
 
   // Simplify any new induction variables in the partially unrolled loop.
   if (SE && !CompletelyUnroll && Count > 1) {
-    SmallVector<WeakVH, 16> DeadInsts;
+    SmallVector<WeakTrackingVH, 16> DeadInsts;
     simplifyLoopIVs(L, SE, DT, LI, DeadInsts);
 
     // Aggressively clean up dead instructions that simplifyLoopIVs already
