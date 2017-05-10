@@ -392,25 +392,28 @@ void printParamLine526(Instruction *I, int param_num, const char* reg_id,
       //Value *args[] = { v_param_num,    v_size,   v_value,     v_is_reg,
       //                  vv_reg_id, v_is_phi, vv_prev_bbid };
       //IRB.CreateCall(TL_log_int, args);
-      trace_logger_log_int(param_num, datasize, 1, is_reg, reg_id, is_phi, prev_bbid);
+      int int_type_val = 1;
+      trace_logger_log_int(param_num, datasize, int_type_val, is_reg, reg_id, is_phi, prev_bbid);
     } else if (datatype >= llvm::Type::HalfTyID &&
                datatype <= llvm::Type::PPC_FP128TyID) {
       //Value *v_value = IRB.CreateFPExt(value, IRB.getDoubleTy());
       //Value *args[] = { v_param_num,    v_size,   v_value,     v_is_reg,
       //                  vv_reg_id, v_is_phi, vv_prev_bbid };
       //IRB.CreateCall(TL_log_double, args);
-      trace_logger_log_double(param_num, datasize, 2, is_reg, reg_id, is_phi, prev_bbid);
+      int weird_type_val = 2;
+      trace_logger_log_double(param_num, datasize, weird_type_val, is_reg, reg_id, is_phi, prev_bbid);
     } else if (datatype == llvm::Type::PointerTyID) {
       //Value *v_value = IRB.CreatePtrToInt(value, IRB.getInt64Ty());
       //Value *args[] = { v_param_num,    v_size,   v_value,     v_is_reg,
       //                  vv_reg_id, v_is_phi, vv_prev_bbid };
       //IRB.CreateCall(TL_log_int, args);
       // if specified as unaliasable, make this address unique
-      // otherwise set it to 3 (assumed to always alias with all other aliasable)
-      long address = 3;
+      // otherwise set it to 0x0 (assumed to always alias with all other aliasable)
+      long address = 0;
       if (!is_aliasable) {
         address = unique_mem_address;
-        unique_mem_address+=datasize;
+        //datasize is in bits so divide by 8
+        unique_mem_address+=datasize/8;
         errs() << "non-aliasable inst " << *I << "\n";
       }
       else {
@@ -425,7 +428,8 @@ void printParamLine526(Instruction *I, int param_num, const char* reg_id,
     //Value *args[] = { v_param_num,    v_size,   v_value,     v_is_reg,
     //                  vv_reg_id, v_is_phi, vv_prev_bbid };
     //IRB.CreateCall(TL_log_int, args);
-    trace_logger_log_int(param_num, datasize, 0, is_reg, reg_id, is_phi, prev_bbid);
+    int null_type_val = 3;
+    trace_logger_log_int(param_num, datasize, null_type_val, is_reg, reg_id, is_phi, prev_bbid);
   }
 }
 
