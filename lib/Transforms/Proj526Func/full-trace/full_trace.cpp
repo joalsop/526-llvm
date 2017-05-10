@@ -294,6 +294,9 @@ bool runOnBasicBlock526(BasicBlock &BB, std::vector<Instruction*> pdominator_brs
   // instrumentation!
   BasicBlock::iterator insertp = BB.getFirstInsertionPt();
 
+  // set dominator branch in env
+  env.pdominator_brs = pdominator_brs;
+
   BasicBlock::iterator itr = BB.begin();
   if (isa<PHINode>(itr))
     handlePhiNodes526(&BB, &env);
@@ -311,9 +314,11 @@ bool runOnBasicBlock526(BasicBlock &BB, std::vector<Instruction*> pdominator_brs
     getInstId526(I, &env);
     setLineNumberIfExists526(I, &env);
     // determine whether user has specified this access is not aliased 
-    env.is_aliasable = (std::find(anti_alias_lines.begin(), anti_alias_lines.end(), env.line_number) == anti_alias_lines.end());
-    // set dominator branch in env
-    env.pdominator_brs = pdominator_brs;
+    env.is_aliasable = true;
+    if (isa<StoreInst>(I) || isa<LoadInst>(I)) {
+      env.is_aliasable = (std::find(anti_alias_lines.begin(), anti_alias_lines.end(), env.line_number) == anti_alias_lines.end());
+      //errs() << *I << " is aliasable?:" << env.is_aliasable << "\n";
+    }
 
     //errs() << "handling inst  " << *I << "\n";
     bool traceCall = true;
@@ -763,6 +768,15 @@ void handlePhiNodes526(BasicBlock* BB, InstEnv* env) {
       //printParamLine(insertp, &params);
       printParamLine526(&(*insertp), &params);
     }
+    // insert 'w' directive for phi insts
+    // so aladdin adds control dependency edge with predecessor branch
+    errs() << "Processing phi " << *I << "\n";
+    for (std::vector<Instruction*>::iterator pred_it=env->pdominator_brs.begin(); pred_it != env->pdominator_brs.end(); pred_it++) {
+      errs() << "  with dominator:" << *(*pred_it) << "\n";
+      assert(inst_map.find(*pred_it) != inst_map.end());
+      errs() << "  found inst id:" << inst_map[*pred_it] << "\n";
+      trace_logger_log_int(DEPENDENCE_LINE, 0, inst_map[*pred_it], 0, "", 0, "");
+    }
   }
 }
 
@@ -913,9 +927,9 @@ void handleNonPhiNonCallInstruction526(Instruction *inst, InstEnv* env) {
   // insert 'w' directive for store insts, phi insts, and terminator insts
   // so aladdin adds control dependency edge with postdominated branch
   if (isa<StoreInst>(inst) || isa<TerminatorInst>(inst) || isa<PHINode>(inst)) {
-    //errs() << "Processing store/terminator " << *inst << "\n";
+    //errs() << "Processing store/terminator/phi " << *inst << "\n";
     for (std::vector<Instruction*>::iterator it=env->pdominator_brs.begin(); it != env->pdominator_brs.end(); it++) {
-      //errs() << "  with dominator:" << *env->dominator_br << "\n";
+      //errs() << "  with dominator:" << *(*it) << "\n";
       assert(inst_map.find(*it) != inst_map.end());
       //errs() << "  found inst id:" << inst_map[*it] << "\n";
       trace_logger_log_int(DEPENDENCE_LINE, 0, inst_map[*it], 0, "", 0, "");

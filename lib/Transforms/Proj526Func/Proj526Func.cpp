@@ -22,6 +22,7 @@ using namespace llvm;
 #include "profile-func/trace_logger.c"
 #include "full-trace/full_trace.h"
 #include "full-trace/full_trace.cpp"
+#include "llvm/IR/CFG.h"
 
 
 #define DEBUG_TYPE "proj526func"
@@ -128,14 +129,21 @@ namespace {
       // if there are any remaining predecessor edges,
       // then the graph was not acyclic
 
-      // establish direct dominator for each BB
-      for (std::vector<cfg_node*>::iterator it_dominatee=trace.begin(); it_dominatee!=trace.end(); it_dominatee++) {
-        for (std::vector<cfg_node*>::iterator it_dominator=trace.begin(); it_dominator!=trace.end(); it_dominator++) {
-          // the last block in the trace which dominates the dominatee
-          // is the direct dominator
-          if (PDT.properlyDominates((*it_dominator)->block, (*it_dominatee)->block)) {
-            (*it_dominator)->postdominators.push_back((*it_dominatee)->block);
-          }
+      //// establish post dominator for each BB
+      //for (std::vector<cfg_node*>::iterator it_dominatee=trace.begin(); it_dominatee!=trace.end(); it_dominatee++) {
+      //  for (std::vector<cfg_node*>::iterator it_dominator=trace.begin(); it_dominator!=trace.end(); it_dominator++) {
+      //    // the last block in the trace which dominates the dominatee
+      //    // is the direct dominator
+      //    if (PDT.properlyDominates((*it_dominator)->block, (*it_dominatee)->block)) {
+      //      (*it_dominator)->postdominators.push_back((*it_dominatee)->block);
+      //    }
+      //  }
+      //}
+      
+      // get list of immediate predecessor blocks for each block
+      for (std::vector<cfg_node*>::iterator BBit=trace.begin(); BBit!=trace.end(); BBit++) {
+        for (auto prit = pred_begin((*BBit)->block), prend = pred_end((*BBit)->block); prit != prend; ++prit) {
+          (*BBit)->postdominators.push_back(*prit);
         }
       }
 
