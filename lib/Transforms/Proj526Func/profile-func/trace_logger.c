@@ -8,11 +8,12 @@
 #include <zlib.h>
 #define RESULT_LINE 19134
 #define FORWARD_LINE 24601
+#define DEPENDENCE_LINE 24602
 #define RET_OP 1
 
 void trace_logger_init();
 void trace_logger_write_labelmap(char* labelmap_buf, size_t labelmap_size);
-void trace_logger_log0(int line_number, char *name, char *bbid, char *instid,
+int trace_logger_log0(int line_number, char *name, char *bbid, char *instid,
                        int opcode, bool is_tracked_function, bool is_toplevel_mode);
 void trace_logger_log_label();
 void trace_logger_fin();
@@ -52,7 +53,7 @@ void trace_logger_fin() {
   gzclose(full_trace_file);
 }
 
-void trace_logger_log0(int line_number, char *name, char *bbid, char *instid,
+int trace_logger_log0(int line_number, char *name, char *bbid, char *instid,
                        int opcode, bool is_tracked_function, bool is_toplevel_mode) {
   if (!initp) {
     trace_logger_init();
@@ -92,11 +93,12 @@ void trace_logger_log0(int line_number, char *name, char *bbid, char *instid,
   }
 
   if (!track_curr_inst)
-    return;
+    return -1;
 
   gzprintf(full_trace_file, "\n0,%d,%s,%s,%s,%d,%d\n", line_number, name, bbid,
           instid, opcode, inst_count);
   inst_count++;
+  return inst_count-1;
 }
 
 void trace_logger_log_int(int line, int size, int64_t value, int is_reg,
@@ -104,12 +106,19 @@ void trace_logger_log_int(int line, int size, int64_t value, int is_reg,
   assert(initp == true);
   if (!track_curr_inst)
     return;
-  if (line == RESULT_LINE)
+  if (line == RESULT_LINE) {
     gzprintf(full_trace_file, "r,%d,%ld,%d", size, value, is_reg);
-  else if (line == FORWARD_LINE)
+  }
+  else if (line == FORWARD_LINE) {
     gzprintf(full_trace_file, "f,%d,%ld,%d", size, value, is_reg);
-  else
+  }
+  else if (line == DEPENDENCE_LINE) {
+    gzprintf(full_trace_file, "w,%d,\n", value);
+    return;
+  }
+  else {
     gzprintf(full_trace_file, "%d,%d,%ld,%d", line, size, value, is_reg);
+  }
   if (is_reg)
     gzprintf(full_trace_file, ",%s", label);
   else
