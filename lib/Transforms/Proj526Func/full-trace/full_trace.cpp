@@ -267,7 +267,7 @@ bool Tracer::runOnBasicBlock(BasicBlock &BB) {
   return false;
 }
 
-bool runOnBasicBlock526(BasicBlock &BB, Instruction* dominator_br, std::vector<int> anti_alias_lines) {
+bool runOnBasicBlock526(BasicBlock &BB, std::vector<Instruction*> pdominator_brs, std::vector<int> anti_alias_lines) {
   Function *func = BB.getParent();
   std::string funcName = func->getName().str();
   InstEnv env;
@@ -313,7 +313,7 @@ bool runOnBasicBlock526(BasicBlock &BB, Instruction* dominator_br, std::vector<i
     // determine whether user has specified this access is not aliased 
     env.is_aliasable = (std::find(anti_alias_lines.begin(), anti_alias_lines.end(), env.line_number) == anti_alias_lines.end());
     // set dominator branch in env
-    env.dominator_br = dominator_br;
+    env.pdominator_brs = pdominator_brs;
 
     //errs() << "handling inst  " << *I << "\n";
     bool traceCall = true;
@@ -727,7 +727,7 @@ void handlePhiNodes526(BasicBlock* BB, InstEnv* env) {
             params.setDataTypeAndSize(curr_operand);
           }
           // insert 'w' directive for phi instructions
-          // so aladdin adds dependency edge with phi sources
+          // so aladdin adds data dependency edge with phi sources
           if (inst_map.find(Iop) != inst_map.end()) {
             //errs() << "  found in inst_map:" << *Iop << ": " << inst_map[Iop] << "\n";
             trace_logger_log_int(DEPENDENCE_LINE, 0, inst_map[Iop], 0, "", 0, "");
@@ -910,15 +910,15 @@ void handleNonPhiNonCallInstruction526(Instruction *inst, InstEnv* env) {
       printParamLine526(inst, &params, env->is_aliasable);
     }
   }
-  // insert 'w' directive for store instructions
-  // so aladdin adds dependency edge with dominator branch
-  if (isa<StoreInst>(inst) || isa<TerminatorInst>(inst)) {
+  // insert 'w' directive for store insts, phi insts, and terminator insts
+  // so aladdin adds control dependency edge with postdominated branch
+  if (isa<StoreInst>(inst) || isa<TerminatorInst>(inst) || isa<PHINode>(inst)) {
     //errs() << "Processing store/terminator " << *inst << "\n";
-    if (env->dominator_br != NULL) {
+    for (std::vector<Instruction*>::iterator it=env->pdominator_brs.begin(); it != env->pdominator_brs.end(); it++) {
       //errs() << "  with dominator:" << *env->dominator_br << "\n";
-      assert(inst_map.find(env->dominator_br) != inst_map.end());
-      //errs() << "  found inst id:" << inst_map[env->dominator_br] << "\n";
-      trace_logger_log_int(DEPENDENCE_LINE, 0, inst_map[env->dominator_br], 0, "", 0, "");
+      assert(inst_map.find(*it) != inst_map.end());
+      //errs() << "  found inst id:" << inst_map[*it] << "\n";
+      trace_logger_log_int(DEPENDENCE_LINE, 0, inst_map[*it], 0, "", 0, "");
     }
   }
 }
