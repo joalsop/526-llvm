@@ -28,6 +28,7 @@ using namespace llvm;
 #define DEBUG_TYPE "proj526func"
 
 static cl::opt<std::string> UnaliasedLines("unaliased_lines", cl::desc("Source lines with accesses which we know will not alias with another access"));
+static cl::opt<std::string> TargetFunction("target_func", cl::desc("This is the function we care about"));
 
 namespace {
   // used for creating trace from CFG
@@ -71,6 +72,12 @@ namespace {
         errs() << *it << ", ";
       }
       errs() << "\n";
+      if (TargetFunction.getNumOccurrences() > 0) {
+        TargetFuncName = std::string(TargetFunction);
+      }
+      else {
+        TargetFuncName = "";
+      }
       return false;
     }
 
@@ -81,6 +88,10 @@ namespace {
     bool runOnFunction(Function &F) override {
       errs() << "Proj526Func: ";
       errs().write_escaped(F.getName()) << '\n';
+      if (TargetFuncName != "" && F.getName() != TargetFuncName) {
+        errs() << ">> don't run on " << F.getName() << ", only " << TargetFuncName << "\n";
+        return 0;
+      }
       auto &PDT = getAnalysis<PostDominatorTreeWrapperPass>().getPostDomTree();
 
       // node map stores cfg_node for each block
@@ -172,6 +183,7 @@ namespace {
     }
   private:
     std::vector<int> AntiAliasingLines;
+    std::string TargetFuncName;
   };
 }
 
